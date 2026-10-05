@@ -126,9 +126,9 @@ public class SmartAI implements AIStrategy {
             ShotOrder plan = bestBlock(knowledge, nuclear);
             if (plan != null) return plan;
         }
-        Weapon salvo = WeaponCatalog.salvo();
-        if (ammo.hasAmmo(salvo) && !ammo.isAmmoInfinite(salvo) && size >= 8) {
-            ShotOrder plan = bestBlock(knowledge, salvo);
+        Weapon cross = WeaponCatalog.crossBomb();
+        if (ammo.hasAmmo(cross) && !ammo.isAmmoInfinite(cross) && size >= 8) {
+            ShotOrder plan = bestBlock(knowledge, cross);
             if (plan != null) return plan;
         }
         return new ShotOrder(WeaponCatalog.standard(), chooseTarget(knowledge), Orientation.HORIZONTAL);

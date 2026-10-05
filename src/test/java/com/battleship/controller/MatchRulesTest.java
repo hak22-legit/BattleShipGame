@@ -7,31 +7,38 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MatchRulesTest {
-    @Test void exactlyThreeNuclearShotsWithNoResupplyInEveryTheater() {
-        for (Theater theater : Theater.values()) {
-            Player player = new HumanPlayer("Player", theater);
-            var nuclear = WeaponCatalog.nuclear();
-            assertEquals(3, player.ammoCount(nuclear));
-            for (int i = 0; i < 3; i++) {
-                assertTrue(player.selectWeapon(nuclear));
-                new NetworkFireService().fireNetworkShot(player, nuclear, new Coordinate(0, 0), Orientation.HORIZONTAL);
-                new NetworkFireService().resupplyNuclear(player);
-                assertEquals(2 - i, player.ammoCount(nuclear));
-            }
-            assertFalse(player.selectWeapon(nuclear));
-            assertThrows(IllegalStateException.class, () -> player.consumeAmmo(nuclear));
-        }
+    @Test void dynamicAmmunitionMatrixStrictlyBoundToBoardSize() {
+        Player p5 = new HumanPlayer("P5", Theater.SKIRMISH);
+        assertEquals(0, p5.ammoCount(WeaponCatalog.crossBomb()));
+        assertEquals(0, p5.ammoCount(WeaponCatalog.nuclear()));
+        assertTrue(p5.isAmmoInfinite(WeaponCatalog.standard()));
+
+        Player p8 = new HumanPlayer("P8", Theater.ENGAGEMENT);
+        assertEquals(2, p8.ammoCount(WeaponCatalog.crossBomb()));
+        assertEquals(0, p8.ammoCount(WeaponCatalog.nuclear()));
+
+        Player p10 = new HumanPlayer("P10", Theater.FLEET_ACTION);
+        assertEquals(3, p10.ammoCount(WeaponCatalog.crossBomb()));
+        assertEquals(1, p10.ammoCount(WeaponCatalog.nuclear()));
+
+        var nuclear = WeaponCatalog.nuclear();
+        assertTrue(p10.selectWeapon(nuclear));
+        new NetworkFireService().fireNetworkShot(p10, nuclear, new Coordinate(0, 0), Orientation.HORIZONTAL);
+        new NetworkFireService().resupplyNuclear(p10);
+        assertEquals(0, p10.ammoCount(nuclear), "Nuclear rounds cannot be refilled during match");
+        assertFalse(p10.selectWeapon(nuclear));
+        assertThrows(IllegalStateException.class, () -> p10.consumeAmmo(nuclear));
     }
     @Test void skippedTurnDoesNotSpendAmmoOrDamageShips() {
-        Player first = new HumanPlayer("First", Theater.SKIRMISH);
-        Player second = new HumanPlayer("Second", Theater.SKIRMISH);
+        Player first = new HumanPlayer("First", Theater.FLEET_ACTION);
+        Player second = new HumanPlayer("Second", Theater.FLEET_ACTION);
         second.deploy(ShipType.PATROL_BOAT, new Coordinate(0, 0), Orientation.HORIZONTAL);
         BattleService battle = new BattleService();
         battle.init(first, second);
         first.selectWeapon(WeaponCatalog.nuclear());
         battle.skipTurn();
         assertSame(second, battle.getCurrentPlayer());
-        assertEquals(3, first.ammoCount(WeaponCatalog.nuclear()));
+        assertEquals(1, first.ammoCount(WeaponCatalog.nuclear()));
         assertEquals(0, second.fleet().get(0).hitCount());
         assertSame(WeaponCatalog.standard(), first.selectedWeapon());
     }

@@ -364,17 +364,16 @@ public class LocalBattleView extends AbstractBattleView {
         boolean anySunk = !result.sunkShips().isEmpty();
         for (ShipSnapshot sunkShip : result.sunkShips()) {
             grid.renderSunkShip(sunkShip);
-            addLogEntry(sunkShip.type().name().replace('_', ' ') + " SUNK!", "sunk");
         }
         boolean anyHit = result.anyHit();
         playResultAudio(anyHit, anySunk);
-        if (!anySunk) {
-            if (anyHit) {
-                addLogEntry("Direct hit!", "hit");
-            } else {
-                addLogEntry("Nothing but spray \u2014 miss.", "miss");
-            }
+
+        List<com.battleship.view.battle.BattleViewController.AttackLogEntry> logEntries =
+                battleController.formatAttackLog(result);
+        for (com.battleship.view.battle.BattleViewController.AttackLogEntry entry : logEntries) {
+            addLogEntry(entry.message(), entry.type());
         }
+
         refreshShipStatusBar();
         refreshShipsLeftLabels();
     }

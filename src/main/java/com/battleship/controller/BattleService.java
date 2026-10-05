@@ -1,32 +1,25 @@
 package com.battleship.controller;
 
-import com.battleship.model.CellStatus;
 import com.battleship.model.Coordinate;
-import com.battleship.model.Orientation;
 import com.battleship.model.Player;
 import com.battleship.model.ShotOrder;
 import com.battleship.model.ShotResult;
 import com.battleship.model.Turn;
 import com.battleship.model.fog.TrackingGrid;
+import com.battleship.model.mode.ClassicModeStrategy;
+import com.battleship.model.mode.GameModeStrategy;
+import com.battleship.model.mode.VictoryResult;
 import com.battleship.model.projection.ShipSnapshot;
-
 import com.battleship.model.weapon.Weapon;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * encapsulates turn management, weapon selection and the firing pipeline.
- * extracted from gamecontroller so the controller can stay a thin mediator (srp).
- *
- * <p>two architectural fixes:</p>
- * <ul>
- *   <li>the ai branch {@code if (aistrategy != null && attacker == player2)} is gone:
- *       whoever holds the turn is asked for a {@link shotorder} through the
- *       polymorphic {@link player#decideautonomousshot()} (v2.2).</li>
- *   <li>every shot updates the <em>shooter's</em> {@link trackinggrid} — the only
- *       fog-of-war model in the game — instead of the shooter reading the
- *       defender's grid (v1.3 / smell 5.2).</li>
- * </ul>
+ * integrates modular GameModeStrategy for dynamic game rules and win conditions.
+ * strictly pure domain service with zero JavaFX imports.
  */
 public class BattleService {
 
@@ -38,6 +31,10 @@ public class BattleService {
     private Player player1;
     private Player player2;
     private Turn currentTurn;
+
+    private GameModeStrategy gameModeStrategy = new ClassicModeStrategy();
+    private int currentRound = 1;
+    private Player winningPlayer;
 
     /** true only between a fire() that ended the match and the controller reacting to it. */
     private boolean battleOver;
@@ -53,10 +50,20 @@ public class BattleService {
     }
 
     public void init(Player player1, Player player2) {
+        init(player1, player2, new ClassicModeStrategy());
+    }
+
+    public void init(Player player1, Player player2, GameModeStrategy strategy) {
         this.player1 = player1;
         this.player2 = player2;
         this.currentTurn = Turn.PLAYER_1;
         this.battleOver = false;
+        this.winningPlayer = null;
+        this.currentRound = 1;
+        this.gameModeStrategy = strategy != null ? strategy : new ClassicModeStrategy();
+        if (player1 != null) {
+            this.gameModeStrategy.initializeMatch(player1, player2, player1.size());
+        }
     }
 
     /** cryptographically fair coin flip determines who fires first. */
@@ -65,8 +72,37 @@ public class BattleService {
         return getCurrentPlayer();
     }
 
-    public Player getCurrentPlayer() { return currentTurn == Turn.PLAYER_1 ? player1 : player2; }
-    public Player getOpponent() { return currentTurn == Turn.PLAYER_1 ? player2 : player1; }
+    public Player getCurrentPlayer() {
+        if (battleOver && winningPlayer != null) {
+            return winningPlayer;
+        }
+        return currentTurn == Turn.PLAYER_1 ? player1 : player2;
+    }
+
+    public Player getOpponent() {
+        return currentTurn == Turn.PLAYER_1 ? player2 : player1;
+    }
+
+    public GameModeStrategy getGameModeStrategy() {
+        return gameModeStrategy;
+    }
+
+    public void setGameModeStrategy(GameModeStrategy strategy) {
+        if (strategy != null) {
+            this.gameModeStrategy = strategy;
+            if (player1 != null) {
+                this.gameModeStrategy.initializeMatch(player1, player2, player1.size());
+            }
+        }
+    }
+
+    public int getCurrentRound() {
+        return currentRound;
+    }
+
+    public Player getWinner() {
+        return winningPlayer != null ? winningPlayer : getCurrentPlayer();
+    }
 
     /** true when the player holding the turn acts on its own (no ui click expected). */
     public boolean isAiTurn() {
@@ -87,10 +123,7 @@ public class BattleService {
 
     /**
      * fires the current player's selected weapon, anchored at the given cell.
-     * the pattern resolution is delegated to the shared {@link shotresolver};
-     * this method owns only the turn-level concerns: knowledge bookkeeping,
-     * ammo consumption, weapon reset, shooter feedback and turn advancement
-     * (unless the defender just lost).
+     * coordinates with GameModeStrategy for secondary effects and win conditions.
      */
     public LauncherFireResult fire(Coordinate anchor) {
         battleOver = false;
@@ -99,8 +132,26 @@ public class BattleService {
         Weapon weapon = attacker.selectedWeapon();
         if (!attacker.hasAmmo(weapon)) throw new IllegalStateException("No ammunition for this shot");
 
+        // Blitz clock update if applicable
+        if (gameModeStrategy instanceof com.battleship.model.mode.BlitzModeStrategy blitz) {
+            blitz.onShotExecuted(attacker);
+            VictoryResult vr = blitz.evaluateVictory(attacker, defender, currentRound);
+            if (vr.isGameOver()) {
+                battleOver = true;
+                winningPlayer = vr.winner();
+            }
+        }
+
         LauncherFireResult result = shotResolution.resolve(
                 defender, weapon, anchor, attacker.weaponOrientation());
+
+        // Game mode post-shot hooks (e.g. SeaMine Cross detonation)
+        List<ShotResult> secondaries = gameModeStrategy.onShotResolved(attacker, defender, anchor, result.results());
+        if (!secondaries.isEmpty()) {
+            List<ShotResult> combined = new ArrayList<>(result.results());
+            combined.addAll(secondaries);
+            result = new LauncherFireResult(combined, result.sunkShips());
+        }
 
         recordObservedOutcome(attacker, result);
         attacker.consumeAmmo(weapon);          // infinite weapons: no-op
@@ -109,9 +160,18 @@ public class BattleService {
             attacker.observeOwnShot(shot);     // polymorphic: only a machine learns
         }
 
-        if (defender.isFleetDestroyed()) {
-            battleOver = true; // turn stays with the winner for game-over reporting
+        // Evaluate victory through the modular strategy
+        VictoryResult victoryResult = gameModeStrategy.evaluateVictory(attacker, defender, currentRound);
+        if (victoryResult.isGameOver()) {
+            battleOver = true;
+            winningPlayer = victoryResult.winner();
+        } else if (defender.isFleetDestroyed()) {
+            battleOver = true;
+            winningPlayer = attacker;
         } else {
+            if (currentTurn == Turn.PLAYER_2) {
+                currentRound++;
+            }
             currentTurn = currentTurn.next();
         }
         return result;
@@ -143,6 +203,9 @@ public class BattleService {
     public void skipTurn() {
         if (battleOver) return;
         getCurrentPlayer().resetWeaponAfterShot();
+        if (currentTurn == Turn.PLAYER_2) {
+            currentRound++;
+        }
         currentTurn = currentTurn.next();
     }
 }

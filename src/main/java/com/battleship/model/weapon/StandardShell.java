@@ -1,11 +1,18 @@
 package com.battleship.model.weapon;
 
+import com.battleship.model.Coordinate;
+import com.battleship.model.Orientation;
+
+import java.util.List;
+
 /**
- * infinite single-cell artillery — the weapon every admiral always has.
+ * canonical single-cell artillery (1x1 target cell): unlimited ammo (∞) on all board sizes.
+ * strictly pure domain class with zero JavaFX imports.
  */
 public final class StandardShell implements Weapon {
 
-    public static final String ID = "DEFAULT";
+    public static final String ID = "SINGLE";
+    public static final String LEGACY_ID = "DEFAULT";
 
     @Override
     public String id() {
@@ -34,6 +41,11 @@ public final class StandardShell implements Weapon {
 
     @Override
     public BlastPattern blastPattern() {
-        return BlastPattern.of(1, 1);
+        return BlastPattern.single();
+    }
+
+    @Override
+    public List<Coordinate> calculateBlastArea(Coordinate anchor, Orientation orientation) {
+        return List.of(anchor);
     }
 }

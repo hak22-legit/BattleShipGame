@@ -7,6 +7,7 @@ import com.battleship.view.CssClasses;
 import com.battleship.view.ImageResources;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -14,13 +15,8 @@ import javafx.scene.layout.HBox;
 import java.util.function.Consumer;
 
 /**
- * the weapon console: one button per registered {@link weapon}, plus its
- * ammunition readout.
- *
- * <p>extracted from the battle template method (v2.1) and rebuilt on the
- * {@link weaponcatalog} (v3.1): the console iterates whatever the catalog knows,
- * so a plugin weapon shows up automatically. it reads ammunition through the
- * player's read-only delegates and never mutates anything itself.</p>
+ * The tactical weapon console: one button per registered {@link Weapon}, plus its
+ * ammunition readout, board size visibility rules, and ammo depletion handling.
  */
 public final class WeaponConsole {
 
@@ -30,24 +26,50 @@ public final class WeaponConsole {
         bar.setAlignment(Pos.CENTER);
     }
 
-    /** the weapon bar node to drop into a layout. */
+    /** The weapon bar node to drop into a layout. */
     public HBox node() {
         return bar;
     }
 
     /**
-     * rebuilds the buttons for the given player.
+     * Rebuilds the buttons for the given player.
      *
-     * @param player     whose magazine is displayed
-     * @param boardsize  battlefield size (weapons may be unavailable on small boards)
-     * @param turnallows whether the local admiral may act right now
-     * @param onselect   invoked when an enabled button is pressed
+     * @param player      whose magazine is displayed
+     * @param boardSize   battlefield size (weapons may be unavailable on small boards)
+     * @param turnAllows  whether the local admiral may act right now
+     * @param onSelect    invoked when an enabled button is pressed
      */
     public void refresh(Player player, int boardSize, boolean turnAllows, Consumer<Weapon> onSelect) {
+        if (player == null) return;
+
+        // Auto-revert selection to SINGLE (Default) if current weapon is empty or unavailable on this board
+        Weapon current = player.selectedWeapon();
+        if (current != null) {
+            boolean available = current.availableFor(boardSize);
+            boolean hasAmmo = current.hasInfiniteAmmo() || player.ammoCount(current) > 0;
+            if (!available || !hasAmmo) {
+                player.selectWeapon(WeaponCatalog.defaultWeapon());
+            }
+        }
+
         bar.getChildren().clear();
         for (Weapon weapon : WeaponCatalog.all()) {
             bar.getChildren().add(buildButton(player, boardSize, turnAllows, weapon, onSelect));
         }
+    }
+
+    /**
+     * Finds the button corresponding to a given weapon for testing and inspection.
+     */
+    public Button getButton(Weapon weapon) {
+        if (weapon == null) return null;
+        String targetId = "weapon-btn-" + weapon.id().toLowerCase();
+        for (javafx.scene.Node node : bar.getChildren()) {
+            if (node instanceof Button btn && targetId.equals(btn.getId())) {
+                return btn;
+            }
+        }
+        return null;
     }
 
     private Button buildButton(Player player, int boardSize, boolean turnAllows,
@@ -59,7 +81,20 @@ public final class WeaponConsole {
 
         String ammoText = weapon.hasInfiniteAmmo() ? "\u221E" : String.valueOf(ammo);
         Button button = new Button(weapon.displayName() + "  (" + ammoText + ")");
+        button.setId("weapon-btn-" + weapon.id().toLowerCase());
         button.getStyleClass().add(CssClasses.WEAPON_BUTTON);
+
+        // Visibility & managed bindings based on board size:
+        // 5x5: Cross and Nuclear buttons hidden and unmanaged
+        // 8x8: Nuclear button hidden and unmanaged, Cross visible (2)
+        // 10x10: Cross visible (3), Nuclear visible (1)
+        if (!available) {
+            button.setVisible(false);
+            button.setManaged(false);
+        } else {
+            button.setVisible(true);
+            button.setManaged(true);
+        }
 
         Image icon = ImageResources.weaponIcon(weapon);
         if (icon != null) {
@@ -72,10 +107,22 @@ public final class WeaponConsole {
 
         button.getStyleClass().add(stateClass(player, weapon, enabled));
         button.setDisable(!enabled);
-        button.setTooltip(new javafx.scene.control.Tooltip(!weapon.allowsResupply()
-                ? ammo + " of 3 nuclear strikes remaining this match. No refills."
-                : weapon.hasInfiniteAmmo() ? "Unlimited ammunition" : ammo + " rounds remaining"));
-        button.setOnAction(e -> onSelect.accept(weapon));
+
+        String tooltipText;
+        if (!weapon.allowsResupply()) {
+            tooltipText = ammo + " of 1 nuclear strike remaining this match (10x10 only). No refills.";
+        } else if (weapon.hasInfiniteAmmo()) {
+            tooltipText = "Unlimited ammunition";
+        } else {
+            tooltipText = ammo + " rounds remaining";
+        }
+        button.setTooltip(new Tooltip(tooltipText));
+
+        button.setOnAction(e -> {
+            if (enabled) {
+                onSelect.accept(weapon);
+            }
+        });
         return button;
     }
 

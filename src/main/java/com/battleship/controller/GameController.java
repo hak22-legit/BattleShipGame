@@ -21,6 +21,8 @@ import com.battleship.persistence.SaveGameService;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import com.battleship.model.mode.GameModeStrategy;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -237,6 +239,8 @@ public class GameController {
     public GameState getState() { return state; }
     public GameMode getSelectedMode() { return selectedMode; }
     public Theater getSelectedTheater() { return selectedTheater; }
+    public BattleService getBattleService() { return battleService; }
+    public GameModeStrategy getGameModeStrategy() { return battleService != null ? battleService.getGameModeStrategy() : null; }
 
     // ---------- read-only player queries (fixes f2: views never receive mutable domain objects) ----------
 

@@ -7,7 +7,8 @@ public enum ShipType {
     SUBMARINE(3, "submarine"),
     CRUISER(3, "cruiser"),
     BATTLESHIP(4, "battleship"),
-    CARRIER(5, "carrier");
+    CARRIER(5, "carrier"),
+    FREIGHTER(3, "cruiser");
 
     private final int size;
     private final String assetName;

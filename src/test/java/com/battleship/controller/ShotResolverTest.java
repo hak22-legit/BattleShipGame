@@ -34,14 +34,14 @@ class ShotResolverTest {
     @Test
     void alreadyResolvedAndOutOfBoundsCellsAreSkipped() {
         PrimaryGrid grid = new PrimaryGrid(10);
-        // salvo anchored at (5,8) horizontally covers (5,8),(5,9),(5,10) — the last is oob.
+        // cross anchored at (5,9) covers (5,9) center, (4,9) N, (6,9) S, (5,8) W, (5,10) E — the last is oob.
         LauncherFireResult first = ShotResolver.STANDARD.resolve(
-                grid, WeaponCatalog.salvoBarrage(), new Coordinate(5, 8), Orientation.HORIZONTAL);
-        assertEquals(2, first.results().size());
+                grid, WeaponCatalog.crossBomb(), new Coordinate(5, 9), Orientation.HORIZONTAL);
+        assertEquals(4, first.results().size());
 
         // re-resolving the same pattern must yield nothing: all live cells were resolved.
         LauncherFireResult second = ShotResolver.STANDARD.resolve(
-                grid, WeaponCatalog.salvoBarrage(), new Coordinate(5, 8), Orientation.HORIZONTAL);
+                grid, WeaponCatalog.crossBomb(), new Coordinate(5, 9), Orientation.HORIZONTAL);
         assertTrue(second.results().isEmpty());
         assertTrue(second.sunkShips().isEmpty());
     }
@@ -51,11 +51,11 @@ class ShotResolverTest {
         PrimaryGrid grid = new PrimaryGrid(10);
         assertTrue(grid.deploy(ShipType.PATROL_BOAT, new Coordinate(0, 0), Orientation.HORIZONTAL));
 
-        // nuclear pattern (2x3 from anchor) covers both patrol boat cells.
+        // nuclear pattern (3x3 centered at (0, 0)) covers (0,0), (0,1), (1,0), (1,1) in-bounds on corner.
         LauncherFireResult result = ShotResolver.STANDARD.resolve(
                 grid, WeaponCatalog.nuclearWarhead(), new Coordinate(0, 0), Orientation.HORIZONTAL);
 
-        assertEquals(6, result.results().size());
+        assertEquals(4, result.results().size());
         assertEquals(1, result.sunkShips().size());
         assertTrue(result.results().stream().anyMatch(r -> r.outcome() == CellStatus.SUNK));
         assertTrue(grid.isFleetDestroyed());

@@ -7,15 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * tactical nuclear warhead: 3x3 square block (up to 9 cells) centered at the target cell.
- * unlocked exclusively on large 10x10 battlefields with 1 round per match (no refills).
- * gated behind launch-code trivia authorization when quiz is enabled.
+ * five-cell '+' area weapon: center + north, south, east, west.
+ * unlocks on medium/large boards with limited ammunition (2 on 8x8, 3 on 10x10, 0 on 5x5).
  * coordinates out of bounds are clipped safely without throwing IndexOutOfBoundsException.
  * strictly pure domain class with zero JavaFX imports.
  */
-public final class NuclearWarhead implements Weapon {
+public final class CrossBomb implements Weapon {
 
-    public static final String ID = "NUCLEAR";
+    public static final String ID = "CROSS";
 
     @Override
     public String id() {
@@ -24,17 +23,19 @@ public final class NuclearWarhead implements Weapon {
 
     @Override
     public String displayName() {
-        return "Nuclear";
+        return "Cross Bomb";
     }
 
     @Override
     public int startingAmmo(int boardSize) {
-        return boardSize >= 10 ? 1 : 0;
+        if (boardSize >= 10) return 3;
+        if (boardSize >= 8) return 2;
+        return 0;
     }
 
     @Override
     public boolean availableFor(int boardSize) {
-        return boardSize >= 10;
+        return boardSize >= 8;
     }
 
     @Override
@@ -44,32 +45,22 @@ public final class NuclearWarhead implements Weapon {
 
     @Override
     public BlastPattern blastPattern() {
-        return BlastPattern.nuclear();
+        return BlastPattern.cross();
     }
 
     @Override
     public List<Coordinate> calculateBlastArea(Coordinate anchor, Orientation orientation) {
-        List<Coordinate> cells = new ArrayList<>(9);
-        for (int dr = -1; dr <= 1; dr++) {
-            for (int dc = -1; dc <= 1; dc++) {
-                cells.add(new Coordinate(anchor.getRow() + dr, anchor.getCol() + dc));
-            }
-        }
+        List<Coordinate> cells = new ArrayList<>(5);
+        cells.add(anchor); // center
+        cells.add(new Coordinate(anchor.getRow() - 1, anchor.getCol())); // north
+        cells.add(new Coordinate(anchor.getRow() + 1, anchor.getCol())); // south
+        cells.add(new Coordinate(anchor.getRow(), anchor.getCol() - 1)); // west
+        cells.add(new Coordinate(anchor.getRow(), anchor.getCol() + 1)); // east
         return cells;
     }
 
     @Override
-    public boolean requiresAuthorization() {
-        return true;
-    }
-
-    @Override
-    public boolean allowsResupply() {
-        return false;
-    }
-
-    @Override
     public void playFiringSound(com.battleship.view.SfxAudio audio) {
-        audio.playNuclear();
+        audio.playFire();
     }
 }

@@ -6,6 +6,7 @@ import com.battleship.model.Orientation;
 import com.battleship.model.Player;
 import com.battleship.model.weapon.Weapon;
 
+import com.battleship.view.battle.BattleViewController;
 import com.battleship.view.battle.WeaponConsole;
 import com.battleship.view.quiz.NuclearLaunchDialog;
 import javafx.scene.control.Alert;
@@ -29,6 +30,7 @@ public abstract class AbstractBattleView {
 
     protected final ViewNavigator nav;
     protected final GameController controller;
+    protected final BattleViewController battleController;
     /** audio facade injected from the navigator — never the static singleton. */
     protected final GameAudio audio;
 
@@ -56,6 +58,7 @@ public abstract class AbstractBattleView {
     protected AbstractBattleView(ViewNavigator nav, GameController controller) {
         this.nav = nav;
         this.controller = controller;
+        this.battleController = new BattleViewController(controller);
         this.audio = nav.getAudio();
     }
 
@@ -145,7 +148,7 @@ public abstract class AbstractBattleView {
     protected final String orientationLabelText() {
         Orientation o = firingPlayer().weaponOrientation();
         String mode = o.isHorizontal() ? "\u2194 HORIZONTAL" : "\u2195 VERTICAL";
-        return "ORIENTATION: " + mode + "   \u2022   [R / Right-Click] to Rotate   \u2022   Affects Salvo / Nuclear";
+        return "ORIENTATION: " + mode + "   \u2022   [R / Right-Click] to Rotate";
     }
 
     /** shared shot outcome audio playback. */
@@ -224,10 +227,9 @@ public abstract class AbstractBattleView {
         if (!canFireNow()) return;
         clearGhost();
         Weapon weapon = firingPlayer().selectedWeapon();
-        List<Coordinate> cells = weapon.calculateBlastArea(new Coordinate(row, col), firingOrientation());
-        int size = enemyGrid.getSize();
+        List<Coordinate> cells = battleController.calculateTargetReticle(
+                weapon, new Coordinate(row, col), firingOrientation(), targetBoardSize());
         for (Coordinate c : cells) {
-            if (!c.isWithinBounds(size)) continue;
             enemyGrid.setCellState(c, ghostStyleClass());
             ghostCells.add(c);
         }
@@ -241,7 +243,8 @@ public abstract class AbstractBattleView {
     }
 
     protected final void refreshLauncherBar() {
-        weaponConsole.refresh(
+        battleController.synchronizeWeaponConsole(
+                weaponConsole,
                 firingPlayer(),
                 controller.getSelectedTheater().getBoardSize(),
                 canFireNow() && extraWeaponGate(),

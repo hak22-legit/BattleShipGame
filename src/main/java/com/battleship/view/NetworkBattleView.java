@@ -50,6 +50,7 @@ public class NetworkBattleView extends AbstractBattleView {
     private Label ownFleetLabel;
     private Label enemyFleetLabel;
     private boolean waitingForResult;
+    private final com.battleship.view.battle.BattleLog battleLog = new com.battleship.view.battle.BattleLog();
 
     public NetworkBattleView(ViewNavigator nav, GameController controller, NetworkGameSession netSession) {
         super(nav, controller);
@@ -169,15 +170,14 @@ public class NetworkBattleView extends AbstractBattleView {
 
         fleetStatusLabel = LanLobbyLayout.text("", "lan-description");
         logLabel = LanLobbyLayout.text("Waiting for the first shot.", "lan-status");
-        com.battleship.view.battle.BattleLog history = new com.battleship.view.battle.BattleLog();
-        logLabel.textProperty().addListener((obs, old, value) -> history.add(value, "info"));
+        logLabel.textProperty().addListener((obs, old, value) -> battleLog.add(value, "info"));
         VBox side = LanLobbyLayout.card(
                 LanLobbyLayout.text("MATCH OVERVIEW", "lan-eyebrow"), fleetStatusLabel,
                 new javafx.scene.control.Separator(),
-                LanLobbyLayout.text("NUCLEAR STRIKES", "lan-field-label"),
-                LanLobbyLayout.text("3 per player, per match. No refills. Launch authorization uses your turn time.", "lan-description"),
+                LanLobbyLayout.text("NUCLEAR STRIKES (1 per match, 10x10 only)", "lan-field-label"),
+                LanLobbyLayout.text("1 per player on 10x10 boards only. No refills. Launch authorization uses your turn time.", "lan-description"),
                 new javafx.scene.control.Separator(),
-                LanLobbyLayout.text("LATEST ACTION", "lan-eyebrow"), logLabel, history.node(),
+                LanLobbyLayout.text("LATEST ACTION", "lan-eyebrow"), logLabel, battleLog.node(),
                 LanLobbyLayout.text("• Miss    ◆ Hit    × Sunk", "lan-description"));
         side.setPrefWidth(230);
         side.setMinWidth(230);
@@ -332,9 +332,25 @@ public class NetworkBattleView extends AbstractBattleView {
         boolean anyHit = applyCellResults(result.results());
         String sunkLog = applySunkShips(result.sunkShips());
 
-        logLabel.setText(sunkLog.isEmpty()
-                ? (anyHit ? "Direct hit!" : "Nothing but spray \u2014 miss.")
-                : sunkLog.trim());
+        if (result.results().size() > 1) {
+            int hits = (int) result.results().stream()
+                    .filter(cr -> cr.outcome() == CellStatus.HIT || cr.outcome() == CellStatus.SUNK)
+                    .count();
+            int misses = (int) result.results().stream()
+                    .filter(cr -> cr.outcome() == CellStatus.MISS)
+                    .count();
+            for (NetMessage.CellResult cr : result.results()) {
+                String st = (cr.outcome() == CellStatus.HIT || cr.outcome() == CellStatus.SUNK) ? "HIT" : "MISS";
+                battleLog.add("  " + cr.coordinate().toString() + ": " + st, st.toLowerCase());
+            }
+            String weaponName = result.results().size() >= 6 ? "Nuclear strike" : "Cross Bomb";
+            String summary = weaponName + " detonated: " + hits + " hit" + (hits == 1 ? "" : "s") + ", " + misses + " miss" + (misses == 1 ? "" : "es") + ".";
+            logLabel.setText(sunkLog.isEmpty() ? summary : sunkLog.trim() + " (" + summary + ")");
+        } else {
+            logLabel.setText(sunkLog.isEmpty()
+                    ? (anyHit ? "Direct hit!" : "Nothing but spray \u2014 miss.")
+                    : sunkLog.trim());
+        }
         playResultAudio(anyHit, !sunkLog.isEmpty());
         refreshFleetStatus();
 

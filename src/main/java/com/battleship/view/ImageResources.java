@@ -2,7 +2,7 @@ package com.battleship.view;
 
 import com.battleship.model.Orientation;
 import com.battleship.model.ShipType;
-import com.battleship.model.weapon.SalvoBarrage;
+import com.battleship.model.weapon.CrossBomb;
 import com.battleship.model.weapon.NuclearWarhead;
 import com.battleship.model.weapon.StandardShell;
 import com.battleship.model.weapon.Weapon;
@@ -54,7 +54,8 @@ public final class ImageResources {
      */
     private static final Map<String, String> WEAPON_ICONS = Map.of(
             StandardShell.ID, "launcher-default",
-            SalvoBarrage.ID, "launcher-level2",
+            StandardShell.LEGACY_ID, "launcher-default",
+            CrossBomb.ID, "launcher-cross",
             NuclearWarhead.ID, "launcher-nuclear"
     );
 

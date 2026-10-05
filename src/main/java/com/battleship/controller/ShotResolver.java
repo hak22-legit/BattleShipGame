@@ -34,7 +34,7 @@ public final class ShotResolver implements ShotResolution {
                                       Coordinate anchor, Orientation orientation) {
 
         int size = target.size();
-        List<Coordinate> cells = weapon.blastPattern().coverage(anchor, orientation);
+        List<Coordinate> cells = weapon.calculateBlastArea(anchor, orientation);
         List<ShotResult> results = new ArrayList<>();
         List<ShipSnapshot> sunk = new ArrayList<>();
 
@@ -49,6 +49,22 @@ public final class ShotResolver implements ShotResolution {
             }
         }
 
-        return new LauncherFireResult(results, sunk);
+        List<ShotResult> finalResults = new ArrayList<>(results.size());
+        for (ShotResult sr : results) {
+            ShipSnapshot matchingSunk = null;
+            for (ShipSnapshot s : sunk) {
+                if (s.cells().contains(sr.coordinate())) {
+                    matchingSunk = s;
+                    break;
+                }
+            }
+            if (matchingSunk != null && sr.outcome() != CellStatus.SUNK) {
+                finalResults.add(new ShotResult(sr.coordinate(), CellStatus.SUNK, matchingSunk));
+            } else {
+                finalResults.add(sr);
+            }
+        }
+
+        return new LauncherFireResult(finalResults, sunk);
     }
 }

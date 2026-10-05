@@ -64,7 +64,7 @@ class ParityHunterTest {
         ShotOrder plan = ai.chooseShotPlan(TrackingGrid.blind(10), p);
 
         assertTrue(plan.anchor().isWithinBounds(10));
-        assertEquals(3, p.ammoCount(WeaponCatalog.salvo()));
-        assertEquals(3, p.ammoCount(WeaponCatalog.nuclear()));
+        assertEquals(3, p.ammoCount(WeaponCatalog.crossBomb()));
+        assertEquals(1, p.ammoCount(WeaponCatalog.nuclear()));
     }
 }

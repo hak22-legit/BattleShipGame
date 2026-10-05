@@ -17,9 +17,9 @@ class WeaponPolymorphismTest {
     }
 
     @Test
-    void salvoBarrageDoesNotRequireAuthorization() {
-        Weapon salvo = WeaponCatalog.salvo();
-        assertFalse(salvo.requiresAuthorization());
+    void crossBombDoesNotRequireAuthorization() {
+        Weapon cross = WeaponCatalog.crossBomb();
+        assertFalse(cross.requiresAuthorization());
     }
 
     @Test

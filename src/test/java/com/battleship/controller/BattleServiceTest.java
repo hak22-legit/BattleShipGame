@@ -74,7 +74,7 @@ class BattleServiceTest {
         assertTrue(p2.isFleetDestroyed());
         assertTrue(service.isBattleOver());
         // ammo was consumed through the delegate; launcher reset.
-        assertEquals(2, p1.ammoCount(WeaponCatalog.nuclearWarhead()));
+        assertEquals(0, p1.ammoCount(WeaponCatalog.nuclearWarhead()));
         assertTrue(p1.selectedWeapon() == WeaponCatalog.standardShell());
         // turn stays with the winner so game-over reporting names the right player.
         assertEquals(p1, service.getCurrentPlayer());
@@ -84,14 +84,19 @@ class BattleServiceTest {
     void playerAmmoDelegatesNeverExposeTheMutableInventory() {
         Player p = freshAdmiral("P", 8);
         // encapsulation (v1): only read/delegate access; consume & resupply go through the player.
-        assertEquals(3, p.ammoCount(WeaponCatalog.nuclearWarhead()));
-        p.consumeAmmo(WeaponCatalog.nuclearWarhead());
-        p.consumeAmmo(WeaponCatalog.nuclearWarhead());
-        p.consumeAmmo(WeaponCatalog.nuclearWarhead());
-        assertFalse(p.hasAmmo(WeaponCatalog.nuclearWarhead()));
-        p.resupplyAmmo(WeaponCatalog.nuclearWarhead(), 1);
-        assertFalse(p.hasAmmo(WeaponCatalog.nuclearWarhead()), "Nuclear rounds cannot be refilled during a match");
-        assertTrue(p.isAmmoInfinite(WeaponCatalog.standardShell()));
+        assertEquals(2, p.ammoCount(WeaponCatalog.crossBomb()));
+        p.consumeAmmo(WeaponCatalog.crossBomb());
+        assertEquals(1, p.ammoCount(WeaponCatalog.crossBomb()));
+        p.consumeAmmo(WeaponCatalog.crossBomb());
+        assertFalse(p.hasAmmo(WeaponCatalog.crossBomb()));
+
+        Player p10 = freshAdmiral("P10", 10);
+        assertEquals(1, p10.ammoCount(WeaponCatalog.nuclearWarhead()));
+        p10.consumeAmmo(WeaponCatalog.nuclearWarhead());
+        assertFalse(p10.hasAmmo(WeaponCatalog.nuclearWarhead()));
+        p10.resupplyAmmo(WeaponCatalog.nuclearWarhead(), 1);
+        assertFalse(p10.hasAmmo(WeaponCatalog.nuclearWarhead()), "Nuclear rounds cannot be refilled during a match");
+        assertTrue(p10.isAmmoInfinite(WeaponCatalog.standardShell()));
     }
 
     @Test
@@ -102,10 +107,10 @@ class BattleServiceTest {
         com.battleship.model.ShotOrder plan = ai.chooseShotPlan(p.trackingGrid(), p);
 
         // planning must never mutate ammo — the ai only reads through delegates (v1).
-        assertEquals(3, p.ammoCount(WeaponCatalog.salvoBarrage()));
-        assertEquals(3, p.ammoCount(WeaponCatalog.nuclearWarhead()));
+        assertEquals(3, p.ammoCount(WeaponCatalog.crossBomb()));
+        assertEquals(1, p.ammoCount(WeaponCatalog.nuclearWarhead()));
         assertTrue(plan.weapon() == WeaponCatalog.standardShell()
-                || plan.weapon() == WeaponCatalog.salvoBarrage());
+                || plan.weapon() == WeaponCatalog.crossBomb());
         assertTrue(plan.anchor().isWithinBounds(10));
     }
 }

@@ -50,12 +50,12 @@ public class HuntTargetAI implements AIStrategy {
      */
     @Override
     public ShotOrder chooseShotPlan(TrackingGrid knowledge, AmmoReadout ammo) {
-        var salvo = WeaponCatalog.salvo();
+        var cross = WeaponCatalog.crossBomb();
         boolean hunting = !targetQueue.hasTargets();
-        if (hunting && ammo.hasAmmo(salvo) && !ammo.isAmmoInfinite(salvo) && random.nextInt(4) == 0) {
+        if (hunting && ammo.hasAmmo(cross) && !ammo.isAmmoInfinite(cross) && random.nextInt(4) == 0) {
             // same shared hunt heuristic as choosetarget — no duplicated parity block.
             Coordinate anchor = ParityHunter.pick(knowledge, random);
-            return new ShotOrder(salvo, anchor, Orientation.random(random));
+            return new ShotOrder(cross, anchor, Orientation.random(random));
         }
         return AIStrategy.super.chooseShotPlan(knowledge, ammo);
     }

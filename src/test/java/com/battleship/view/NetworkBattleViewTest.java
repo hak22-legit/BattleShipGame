@@ -54,17 +54,18 @@ class NetworkBattleViewTest {
     }
 
     private void verifyQuestionAndWeaponFlow(Role role) throws Exception {
-        Player me = new HumanPlayer("Local player", Theater.SKIRMISH);
+        Player me = new HumanPlayer("Local player", Theater.FLEET_ACTION);
+        me.arsenal().setAmmo(com.battleship.model.weapon.WeaponType.NUCLEAR, 3);
         me.deploy(ShipType.PATROL_BOAT, new Coordinate(4, 0), Orientation.HORIZONTAL);
         RecordingController controller = new RecordingController();
         controller.setMode(GameMode.ONLINE);
-        controller.setTheater(Theater.SKIRMISH);
+        controller.setTheater(Theater.FLEET_ACTION);
 
         // Use an unconnected transport: incoming messages go through the real view callback.
         var constructor = NetworkSession.class.getDeclaredConstructor(Executor.class);
         constructor.setAccessible(true);
         NetworkSession transport = constructor.newInstance((Executor) Runnable::run);
-        NetworkGameSession session = new NetworkGameSession(transport, Theater.SKIRMISH, role, me);
+        NetworkGameSession session = new NetworkGameSession(transport, Theater.FLEET_ACTION, role, me);
         session.beginMatch(role == Role.CLIENT); // The opponent moves first for either role.
         TestView view = new TestView(navigator(), controller, session);
         view.build();
@@ -117,13 +118,14 @@ class NetworkBattleViewTest {
             try {
                 RecordingController controller = new RecordingController();
                 controller.setMode(GameMode.ONLINE);
-                controller.setTheater(Theater.SKIRMISH);
-                Player me = new HumanPlayer("Me", Theater.SKIRMISH);
+                controller.setTheater(Theater.FLEET_ACTION);
+                Player me = new HumanPlayer("Me", Theater.FLEET_ACTION);
+                me.arsenal().setAmmo(com.battleship.model.weapon.WeaponType.NUCLEAR, 3);
                 me.deploy(ShipType.PATROL_BOAT, new Coordinate(4, 0), Orientation.HORIZONTAL);
                 var constructor = NetworkSession.class.getDeclaredConstructor(Executor.class);
                 constructor.setAccessible(true);
                 NetworkSession transport = constructor.newInstance((Executor) Runnable::run);
-                NetworkGameSession session = new NetworkGameSession(transport, Theater.SKIRMISH, role, me);
+                NetworkGameSession session = new NetworkGameSession(transport, Theater.FLEET_ACTION, role, me);
                 session.beginMatch(role == Role.HOST);
                 TestView view = new TestView(navigator(), controller, session);
                 view.build();

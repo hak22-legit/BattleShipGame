@@ -9,6 +9,10 @@ import com.battleship.model.projection.ShipSnapshot;
  */
 public record ShotResult(Coordinate coordinate, CellStatus outcome, ShipSnapshot shipSunk) {
 
+    public ShotResult(Coordinate coordinate, CellStatus outcome) {
+        this(coordinate, outcome, null);
+    }
+
     public boolean isHit() {
         return outcome == CellStatus.HIT || outcome == CellStatus.SUNK;
     }

@@ -36,7 +36,7 @@ public abstract class Player implements FleetReadout, FleetDeployment, ShotTarge
     /** never exposed — the whole point of the v1.1 fix. */
     private final PrimaryGrid primaryGrid;
     private final TrackingGrid trackingGrid;
-    private final Arsenal arsenal;
+    private final PlayerArsenal arsenal;
 
     /**
      * @param name                  display name
@@ -47,7 +47,7 @@ public abstract class Player implements FleetReadout, FleetDeployment, ShotTarge
         this.name = Objects.requireNonNull(name, "A player needs a name.");
         this.primaryGrid = new PrimaryGrid(boardSize);
         this.trackingGrid = new TrackingGrid(boardSize, enemyFleetComposition);
-        this.arsenal = new Arsenal(boardSize);
+        this.arsenal = new PlayerArsenal(boardSize);
     }
 
     public String name() {
@@ -75,6 +75,13 @@ public abstract class Player implements FleetReadout, FleetDeployment, ShotTarge
     }
 
     /**
+     * player's arsenal component.
+     */
+    public PlayerArsenal arsenal() {
+        return arsenal;
+    }
+
+    /**
      * ammunition readout component for weapon stock queries.
      */
     public AmmoReadout ammoReadout() {
@@ -92,8 +99,8 @@ public abstract class Player implements FleetReadout, FleetDeployment, ShotTarge
     }
 
     /**
-     * produces this player's next shot on its own, or {@link optional#empty()} when
-     * a human must click a cell. {@link aiplayer} overrides this; {@link humanplayer}
+     * produces this player's next shot on its own, or {@link Optional#empty()} when
+     * a human must click a cell. {@link AiPlayer} overrides this; {@link HumanPlayer}
      * inherits the empty answer.
      */
     public Optional<ShotOrder> decideAutonomousShot() {
@@ -112,18 +119,29 @@ public abstract class Player implements FleetReadout, FleetDeployment, ShotTarge
         return arsenal.select(weapon);
     }
 
-    /** @deprecated prefer {@link #selectweapon(weapon)} with {@link com.battleship.model.weapon.weaponcatalog#defaultweapon()}. */
+    public boolean selectWeapon(com.battleship.model.weapon.WeaponType type) {
+        return arsenal.select(type);
+    }
+
+    public boolean canFire(com.battleship.model.weapon.WeaponType type) {
+        return arsenal.canFire(type);
+    }
+
+    public boolean canFire(Weapon weapon) {
+        return arsenal.canFire(weapon);
+    }
+
+    /** @deprecated prefer {@link #selectWeapon(Weapon)} with {@link com.battleship.model.weapon.WeaponCatalog#defaultWeapon()}. */
     @Deprecated
     public boolean aimDefault() {
         return selectWeapon(com.battleship.model.weapon.WeaponCatalog.defaultWeapon());
     }
 
-    /** @deprecated prefer {@link #selectweapon(weapon)} with {@link com.battleship.model.weapon.weaponcatalog#nuclear()}. */
+    /** @deprecated prefer {@link #selectWeapon(Weapon)} with {@link com.battleship.model.weapon.WeaponCatalog#nuclear()}. */
     @Deprecated
     public boolean aimNuclear() {
         return selectWeapon(com.battleship.model.weapon.WeaponCatalog.nuclear());
     }
-
 
     public void toggleWeaponOrientation() {
         arsenal.toggleOrientation();
@@ -139,8 +157,16 @@ public abstract class Player implements FleetReadout, FleetDeployment, ShotTarge
         arsenal.arm(weapon, orientation);
     }
 
+    public void armWeapon(com.battleship.model.weapon.WeaponType type, Orientation orientation) {
+        arsenal.arm(type, orientation);
+    }
+
     public Weapon selectedWeapon() {
         return arsenal.selected();
+    }
+
+    public com.battleship.model.weapon.WeaponType selectedWeaponType() {
+        return arsenal.selectedType();
     }
 
     public Orientation weaponOrientation() {
@@ -148,14 +174,34 @@ public abstract class Player implements FleetReadout, FleetDeployment, ShotTarge
     }
 
     public void consumeAmmo(Weapon weapon) {
-        arsenal.consume(weapon);
+        arsenal.consumeAmmo(weapon);
+    }
+
+    public void consumeAmmo(com.battleship.model.weapon.WeaponType type) {
+        arsenal.consumeAmmo(type);
     }
 
     public void resupplyAmmo(Weapon weapon, int amount) {
         arsenal.resupply(weapon, amount);
     }
 
+    public void resupplyAmmo(com.battleship.model.weapon.WeaponType type, int amount) {
+        arsenal.resupply(type, amount);
+    }
+
     // ---------- ammoreadout ----------
+
+    public int ammoCount(com.battleship.model.weapon.WeaponType type) {
+        return arsenal.ammoCount(type);
+    }
+
+    public boolean hasAmmo(com.battleship.model.weapon.WeaponType type) {
+        return arsenal.hasAmmo(type);
+    }
+
+    public boolean isAmmoInfinite(com.battleship.model.weapon.WeaponType type) {
+        return arsenal.isAmmoInfinite(type);
+    }
 
     @Override
     public int ammoCount(Weapon weapon) {
